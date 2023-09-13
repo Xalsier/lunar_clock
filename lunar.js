@@ -24,9 +24,8 @@ const altitudeHelper = {
 };
 
 const moonAltitudeElement = document.getElementById('moonAltitude');
-moonAltitudeElement.textContent = '--:--° --'; // Placeholder
 
-// Test comment
+// Adjust the time to match Tokyo's timezone
 const userTimezoneOffset = new Date().getTimezoneOffset();
 const tokyoTimezoneOffset = -540;  // Tokyo is UTC+9
 const offsetDifference = userTimezoneOffset - tokyoTimezoneOffset;
@@ -82,20 +81,9 @@ function toggleShowTicks() {
 
 moonAltitudeElement.addEventListener('click', toggleShowTicks);
 
-document.getElementById('button1').addEventListener('click', () => {
-    moonClockEnabled = false;
-    moonAltitudeElement.textContent = '';
-});
-document.getElementById('button2').addEventListener('click', () => {
-    moonClockEnabled = true;
-    requestAnimationFrame(updateMoonAltitude);
-});
-document.getElementById('button3').addEventListener('click', () => {
-    moonClockEnabled = false;
-    moonAltitudeElement.textContent = '';
-});
 moonAltitudeElement.textContent = '';
 
+// Enable the moon clock on page load
 window.addEventListener('load', () => {
     moonClockEnabled = true;
     requestAnimationFrame(updateMoonAltitude);
