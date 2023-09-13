@@ -5,6 +5,7 @@ const HIGH_MOON = 'HM';
 const DEGREE_SEGMENT = 15;
 const TICK_MULTIPLIER = 100;
 const ALTITUDE_OFFSET = 12;  // The altitude offset
+let applyAltitudeOffset = false;
 
 // Dependencies
 const SUN_CALC = SunCalc;  // Important library for moon position calculations
@@ -25,16 +26,34 @@ const altitudeHelper = {
 
 const moonAltitudeElement = document.getElementById('moonAltitude');
 
-// Adjust the time to match Tokyo's timezone
-const userTimezoneOffset = new Date().getTimezoneOffset();
-const tokyoTimezoneOffset = -540;  // Tokyo is UTC+9
-const offsetDifference = userTimezoneOffset - tokyoTimezoneOffset;
-let now = new Date();
-now.setMinutes(now.getMinutes() - offsetDifference);
+function getTokyoTime() {
+    const now = new Date();
+
+    // Get Tokyo time using the Intl.DateTimeFormat API
+    const tokyoDateTime = new Intl.DateTimeFormat('en-US', { 
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'Asia/Tokyo'
+    }).formatToParts(now);
+    
+    const tokyoDate = new Date(
+        +tokyoDateTime.find(p => p.type === "year").value,
+        +tokyoDateTime.find(p => p.type === "month").value - 1,
+        +tokyoDateTime.find(p => p.type === "day").value,
+        +tokyoDateTime.find(p => p.type === "hour").value,
+        +tokyoDateTime.find(p => p.type === "minute").value,
+        +tokyoDateTime.find(p => p.type === "second").value
+    );
+
+    return tokyoDate;
+}
 
 function updateMoonAltitude() {
-    now.setTime(Date.now());
-    now.setMinutes(now.getMinutes() - offsetDifference); // Adjust for Tokyo timezone again
+    const now = getTokyoTime(); // Use the Tokyo time function
     let altitude;
 
     try {
@@ -43,7 +62,9 @@ function updateMoonAltitude() {
             throw new Error('Invalid altitude value returned by the library.');
         }
         altitude = Math.abs(moonPosition.altitude * RAD_TO_DEG);
-        altitude += ALTITUDE_OFFSET;  // Apply the altitude offset
+        if (applyAltitudeOffset) {
+            altitude += ALTITUDE_OFFSET;  // Apply the altitude offset
+        }
         altitude = Math.min(90, Math.max(0, altitude)); // Clamp the altitude value
 
     } catch (error) {
