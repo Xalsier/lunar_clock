@@ -25,7 +25,7 @@ const altitudeHelper = {
 
 const moonAltitudeElement = document.getElementById('moonAltitude');
 
-// Adjust the time to match Tokyo's timezone
+// Test comment
 const userTimezoneOffset = new Date().getTimezoneOffset();
 const tokyoTimezoneOffset = -540;  // Tokyo is UTC+9
 const offsetDifference = userTimezoneOffset - tokyoTimezoneOffset;
