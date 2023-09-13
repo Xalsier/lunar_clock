@@ -9,8 +9,8 @@ let applyAltitudeOffset = false;
 
 // Dependencies
 const SUN_CALC = SunCalc;  // Important library for moon position calculations
-let prevAltitude = null;
 
+let prevAltitude = null;
 let showTicks = true; // True/False switch to show or hide the ticks
 let moonClockEnabled = false;
 const moonData = {
@@ -49,8 +49,12 @@ function getTokyoTime() {
         +tokyoDateTime.find(p => p.type === "second").value
     );
 
+    // Append current milliseconds to the Tokyo time.
+    tokyoDate.setMilliseconds(now.getMilliseconds());
+
     return tokyoDate;
 }
+
 
 function updateMoonAltitude() {
     const now = getTokyoTime(); // Use the Tokyo time function

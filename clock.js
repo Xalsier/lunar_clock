@@ -14,11 +14,11 @@ window.onload = function() {
         }).format(now);
 
         clockDiv.textContent = tokyoTime;
+
+        // Request the next frame
+        requestAnimationFrame(updateTime);
     }
 
-    // Update time immediately
+    // Start the loop
     updateTime();
-
-    // Update time every minute
-    setInterval(updateTime, 60 * 1000);
 }
