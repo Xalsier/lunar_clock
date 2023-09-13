@@ -81,8 +81,7 @@ function toggleShowTicks() {
 
 moonAltitudeElement.addEventListener('click', toggleShowTicks);
 
-moonAltitudeElement.textContent = '';
-
+moonAltitudeElement.textContent = ''
 // Enable the moon clock on page load
 window.addEventListener('load', () => {
     moonClockEnabled = true;
