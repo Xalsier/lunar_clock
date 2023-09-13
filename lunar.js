@@ -24,6 +24,7 @@ const altitudeHelper = {
 };
 
 const moonAltitudeElement = document.getElementById('moonAltitude');
+moonAltitudeElement.textContent = '--:--° --'; // Placeholder
 
 // Test comment
 const userTimezoneOffset = new Date().getTimezoneOffset();
@@ -95,7 +96,6 @@ document.getElementById('button3').addEventListener('click', () => {
 });
 moonAltitudeElement.textContent = '';
 
-// Enable the moon clock on page load
 window.addEventListener('load', () => {
     moonClockEnabled = true;
     requestAnimationFrame(updateMoonAltitude);
