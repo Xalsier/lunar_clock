@@ -1,35 +1,23 @@
-// Constants
 const RAD_TO_DEG = 180 / Math.PI;
-const AFTER_TWILIGHT = 'AT';
 const HIGH_MOON = 'HM';
 const DEGREE_SEGMENT = 15;
-const TICK_MULTIPLIER = 100;
-const ALTITUDE_OFFSET = 12;  // The altitude offset
+const TICK_MULTIPLIER = 240;
+const ALTITUDE_OFFSET = 12;
 let applyAltitudeOffset = false;
+const LAST_UPDATE_TIME = Symbol('lastUpdateTime');
+const SUN_CALC = SunCalc;
 
-// Dependencies
-const SUN_CALC = SunCalc;  // Important library for moon position calculations
-let prevAltitude = null;
-
-let showTicks = true; // True/False switch to show or hide the ticks
-let moonClockEnabled = false;
 const moonData = {
     latitude_degrees: 35.6895,
-    longitude_degrees: 139.6917,
-};
-
-const altitudeHelper = {
-    segment: altitude => Math.floor(altitude / DEGREE_SEGMENT),
-    degree: altitude => Math.floor(altitude % DEGREE_SEGMENT),
-    tick: altitude => Math.round((altitude % 1) * TICK_MULTIPLIER),
+    longitude_degrees: 139.6917
 };
 
 const moonAltitudeElement = document.getElementById('moonAltitude');
+const TICK_DURATION = 1000;
+let updateInterval;
 
 function getTokyoTime() {
     const now = new Date();
-
-    // Get Tokyo time using the Intl.DateTimeFormat API
     const tokyoDateTime = new Intl.DateTimeFormat('en-US', { 
         year: 'numeric',
         month: '2-digit',
@@ -39,7 +27,6 @@ function getTokyoTime() {
         second: '2-digit',
         timeZone: 'Asia/Tokyo'
     }).formatToParts(now);
-    
     const tokyoDate = new Date(
         +tokyoDateTime.find(p => p.type === "year").value,
         +tokyoDateTime.find(p => p.type === "month").value - 1,
@@ -48,63 +35,81 @@ function getTokyoTime() {
         +tokyoDateTime.find(p => p.type === "minute").value,
         +tokyoDateTime.find(p => p.type === "second").value
     );
-
+    tokyoDate.setMilliseconds(now.getMilliseconds());
     return tokyoDate;
 }
+function preciseInterval(callback, interval) {
+    let expectedTime = Date.now() + interval;
 
-function updateMoonAltitude() {
-    const now = getTokyoTime(); // Use the Tokyo time function
-    let altitude;
-
-    try {
-        const moonPosition = SUN_CALC.getMoonPosition(now, moonData.latitude_degrees, moonData.longitude_degrees);
-        if (Math.abs(moonPosition.altitude) > Math.PI / 2) {
-            throw new Error('Invalid altitude value returned by the library.');
+    function step() {
+        const currentTime = Date.now();
+        if (currentTime >= expectedTime) {
+            callback();
+            expectedTime = currentTime + interval;
         }
-        altitude = Math.abs(moonPosition.altitude * RAD_TO_DEG);
-        if (applyAltitudeOffset) {
-            altitude += ALTITUDE_OFFSET;  // Apply the altitude offset
-        }
-        altitude = Math.min(90, Math.max(0, altitude)); // Clamp the altitude value
-
-    } catch (error) {
-        console.error('Error updating moon altitude:', error);
-
-        if (prevAltitude !== null) {
-            // Assume the moon's altitude change is similar to the last frame.
-            altitude = prevAltitude + (altitude - prevAltitude);
-        } else {
-            moonAltitudeElement.textContent = "Click to reset.";
-            moonAltitudeElement.addEventListener('click', toggleShowTicks);
-            return;
-        }
+        requestAnimationFrame(step);
     }
 
-    const altitudeSegment = altitudeHelper.segment(altitude);
-    const altitudeDegree = altitudeHelper.degree(altitude);
-    const altitudeTick = showTicks ? `'${String(altitudeHelper.tick(altitude)).padStart(2, '0')}` : '';
-    const altitudeUnit = (prevAltitude !== null && altitude < prevAltitude) ? HIGH_MOON : AFTER_TWILIGHT;
+    requestAnimationFrame(step);
+}
+function getMoonPosition(now) {
+    const moonPosition = SUN_CALC.getMoonPosition(now, moonData.latitude_degrees, moonData.longitude_degrees);
+    let altitude = Math.abs(moonPosition.altitude * RAD_TO_DEG);
+    if (applyAltitudeOffset) altitude += ALTITUDE_OFFSET;
+    return Math.min(90, Math.max(0, altitude));
+}
 
-    const moonAltitudeString = `${String(altitudeSegment).padStart(2, '0')}:${String(altitudeDegree).padStart(2, '0')}${altitudeTick}° ${altitudeUnit}`;
-    moonAltitudeElement.textContent = moonAltitudeString;
+function formatMoonAltitudeString(altitude) {
+    let tick = Math.round((altitude % 1) * TICK_MULTIPLIER); // Adjusted for 240 ticks per degree
+    let degree = Math.floor(altitude % DEGREE_SEGMENT);
+    let segment = Math.floor(altitude / DEGREE_SEGMENT);
 
-    prevAltitude = altitude;  // Store the current altitude for the next frame
+    // Wrap-around logic (similar to a clock)
+    if (tick === 240) { tick = 0; degree++; } // If tick reaches 240, reset to 0 and increment degree.
 
-    if (moonClockEnabled) {
-        requestAnimationFrame(updateMoonAltitude);
+    degree = degree % 15;
+    if (degree === 15) { degree = 0; segment++; } // If degree reaches 15, reset to 0 and increment segment.
+
+    segment = segment % 12; // If segment reaches 12, reset to 0.
+
+    const tickString = `'${String(tick).padStart(3, '0')}`; // Pad with 3 zeros
+    return `${String(segment).padStart(2, '0')}:${String(degree).padStart(2, '0')}${tickString}° ${HIGH_MOON}`;
+}
+
+
+
+function displayMoonAltitude() {
+    const now = getTokyoTime();
+    let altitude = getMoonPosition(now);
+    let newAltitudeString = formatMoonAltitudeString(altitude);
+    moonAltitudeElement.textContent = newAltitudeString;
+
+    // Store the last update time for potential future precision checks
+    moonAltitudeElement[LAST_UPDATE_TIME] = now.getTime();
+}
+
+// Display the moon altitude once when the window loads.
+window.addEventListener('load', displayMoonAltitude);
+
+function handleWindow2CheckboxChange() {
+    const checkbox = document.getElementById('window2-checkbox');
+    if (checkbox.checked) {
+        console.log("Starting the moon clock...");
+        if (!updateInterval) {
+            updateInterval = preciseInterval(displayMoonAltitude, TICK_DURATION);
+        }
+    } else {
+        console.log("Pausing the moon clock...");
+        cancelAnimationFrame(updateInterval);
+        updateInterval = null;
     }
 }
 
-function toggleShowTicks() {
-    showTicks = !showTicks;
-    updateMoonAltitude();  // Immediately update the display after toggling
+
+// Add an event listener to the checkbox.
+document.getElementById('window2-checkbox').addEventListener('change', handleWindow2CheckboxChange);
+
+// Initialize the interval when the page loads, only if the checkbox is checked.
+if (document.getElementById('window2-checkbox').checked) {
+    updateInterval = setInterval(displayMoonAltitude, TICK_DURATION);
 }
-
-moonAltitudeElement.addEventListener('click', toggleShowTicks);
-
-moonAltitudeElement.textContent = ''
-// Enable the moon clock on page load
-window.addEventListener('load', () => {
-    moonClockEnabled = true;
-    requestAnimationFrame(updateMoonAltitude);
-});
