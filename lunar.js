@@ -18,39 +18,15 @@ let updateInterval;
 
 function getTokyoTime() {
     const now = new Date();
-    const tokyoDateTime = new Intl.DateTimeFormat('en-US', { 
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: 'Asia/Tokyo'
-    }).formatToParts(now);
-    const tokyoDate = new Date(
-        +tokyoDateTime.find(p => p.type === "year").value,
-        +tokyoDateTime.find(p => p.type === "month").value - 1,
-        +tokyoDateTime.find(p => p.type === "day").value,
-        +tokyoDateTime.find(p => p.type === "hour").value,
-        +tokyoDateTime.find(p => p.type === "minute").value,
-        +tokyoDateTime.find(p => p.type === "second").value
-    );
-    tokyoDate.setMilliseconds(now.getMilliseconds());
-    return tokyoDate;
+    return new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
 }
+
 function preciseInterval(callback, interval) {
-    let expectedTime = Date.now() + interval;
-
     function step() {
-        const currentTime = Date.now();
-        if (currentTime >= expectedTime) {
-            callback();
-            expectedTime = currentTime + interval;
-        }
-        requestAnimationFrame(step);
+        callback();
+        setTimeout(step, interval);
     }
-
-    requestAnimationFrame(step);
+    step();
 }
 function getMoonPosition(now) {
     const moonPosition = SUN_CALC.getMoonPosition(now, moonData.latitude_degrees, moonData.longitude_degrees);
@@ -82,12 +58,15 @@ function displayMoonAltitude() {
     const now = getTokyoTime();
     let altitude = getMoonPosition(now);
     let newAltitudeString = formatMoonAltitudeString(altitude);
-    moonAltitudeElement.textContent = newAltitudeString;
-
+    
+    // Only update the DOM if the altitude string has changed.
+    if (moonAltitudeElement.textContent !== newAltitudeString) {
+        moonAltitudeElement.textContent = newAltitudeString;
+    }
+    
     // Store the last update time for potential future precision checks
     moonAltitudeElement[LAST_UPDATE_TIME] = now.getTime();
 }
-
 // Display the moon altitude once when the window loads.
 window.addEventListener('load', displayMoonAltitude);
 
@@ -100,7 +79,7 @@ function handleWindow2CheckboxChange() {
         }
     } else {
         console.log("Pausing the moon clock...");
-        cancelAnimationFrame(updateInterval);
+        clearTimeout(updateInterval);
         updateInterval = null;
     }
 }
@@ -109,7 +88,9 @@ function handleWindow2CheckboxChange() {
 // Add an event listener to the checkbox.
 document.getElementById('window2-checkbox').addEventListener('change', handleWindow2CheckboxChange);
 
-// Initialize the interval when the page loads, only if the checkbox is checked.
 if (document.getElementById('window2-checkbox').checked) {
-    updateInterval = setInterval(displayMoonAltitude, TICK_DURATION);
+    updateInterval = setTimeout(function run() {
+        displayMoonAltitude();
+        updateInterval = setTimeout(run, TICK_DURATION);
+    }, TICK_DURATION);
 }
